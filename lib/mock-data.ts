@@ -5,7 +5,7 @@ export const mockUser: User = {
   name: 'María García',
   email: 'maria@ejemplo.com',
   avatar: undefined,
-  currency: 'MXN',
+  currency: 'MXN', 
   country: 'México',
   financialGoal: 'Ahorrar para vacaciones',
 };

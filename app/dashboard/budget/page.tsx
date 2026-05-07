@@ -1,17 +1,20 @@
 "use client";
 
+const categories = [
+    { categoryId: 'food', allocated: 6000, spent: 4250 },
+    { categoryId: 'transport', allocated: 3000, spent: 2100 },
+    { categoryId: 'housing', allocated: 8000, spent: 8000 },
+    { categoryId: 'entertainment', allocated: 2000, spent: 1800 },
+    { categoryId: 'health', allocated: 1500, spent: 500 },
+    { categoryId: 'education', allocated: 1500, spent: 1200 },
+    { categoryId: 'savings', allocated: 2000, spent: 2000 },
+    { categoryId: 'other', allocated: 1000, spent: 650 },
+  ]
+
 import { useState } from "react";
-import { 
-  Wallet, 
-  Edit2, 
-  Save, 
-  TrendingUp, 
-  TrendingDown,
-  AlertCircle,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight
+import { Wallet, Edit2, Save, TrendingUp, TrendingDown,AlertCircle,CheckCircle2,ChevronLeft,ChevronRight
 } from "lucide-react";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,66 +23,93 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DashboardHeader } from "@/components/dashboard-header";
-import { 
-  currentBudget, 
-  formatCurrency, 
-  getCategoryById,
-  getMonthName,
-  mockUser 
-} from "@/lib/mock-data";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  Legend
-} from "recharts";
+import { useEffect } from "react";
+import {  formatCurrency, getCategoryById,getMonthName, } from "@/lib/mock-data"; 
+import {PieChart,Pie,Cell,ResponsiveContainer,Tooltip,Legend} from "recharts";
+
+import {currentBudget,getPresupuestoActivo,crearPresupuesto,actualizarPresupuesto,getHistorialPresupuestos,} from "@/src/services/presupuestoService";
+import { useFinancialSummary } from "@/hooks/useFinancialSummary";
+import { useBudget } from "@/hooks/useBudget";
+
+type User = {
+  nombre: string;
+  email: string;
+  currency: string;
+};
 
 export default function BudgetPage() {
-  const [month, setMonth] = useState(currentBudget.month);
-  const [year, setYear] = useState(currentBudget.year);
-  const [isEditing, setIsEditing] = useState(false);
-  const [totalBudget, setTotalBudget] = useState(currentBudget.totalBudget);
-  const [editBudget, setEditBudget] = useState(totalBudget.toString());
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [user, setUser] = useState<User>({
+    nombre: "Usuario",
+    email: "",
+    currency: "COP",
+  });
 
-  const totalSpent = currentBudget.categories.reduce((acc, cat) => acc + cat.spent, 0);
-  const totalAllocated = currentBudget.categories.reduce((acc, cat) => acc + cat.allocated, 0);
-  const remaining = totalBudget - totalSpent;
-  const budgetPercentage = Math.round((totalSpent / totalBudget) * 100);
-  const unallocated = totalBudget - totalAllocated;
+ 
+  
+const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const pieData = [
-    { name: 'Gastado', value: totalSpent, color: 'hsl(var(--primary))' },
-    { name: 'Disponible', value: Math.max(0, remaining), color: 'hsl(var(--muted))' },
+
+useEffect(() => {
+  const storedUser = localStorage.getItem("user");
+
+if (storedUser) {
+  const parsedUser = JSON.parse(storedUser);
+
+  setUser({
+    nombre: parsedUser.nombre || "Usuario",
+    email: parsedUser.email || "",
+    currency: parsedUser.currency || "COP",
+  });
+}
+}, []);
+
+
+const {incomes, expenses,totalIncome,totalExpenses,loading,} = useFinancialSummary();
+const {presupuesto,setPresupuesto,historial,indexActual,editBudget,setEditBudget,loading:loadingBudget} = useBudget();
+
+
+const valor = Number(presupuesto?.valor || 0);
+const fecha = presupuesto?.fecha?.split("-")[0] ?? "";
+const totalSpent = totalExpenses; 
+const totalAllocated = valor;
+const remaining = valor - totalSpent;
+const budgetPercentage =
+    valor > 0 ? Math.round((totalSpent / valor) * 100) : 0;
+const unallocated = totalIncome;
+
+  
+
+const handleSaveBudget = async () => {
+  const newBudget = parseFloat(editBudget);
+
+  if (isNaN(newBudget) || newBudget <= 0) return;
+
+  try {
+    const data = presupuesto
+      ? await actualizarPresupuesto(newBudget)
+      : await crearPresupuesto(newBudget);
+
+    setPresupuesto(data);
+    setEditBudget(String(data.valor));
+    setIsDialogOpen(false);
+  } catch (error) {
+    console.error("Error guardando presupuesto:", error);
+  }
+};
+
+const pieData = [
+    { name: "Gastado", value: totalSpent, color: "hsl(var(--primary))" },
+    { name: "Disponible", value: Math.max(0, remaining), color: "hsl(var(--muted))" },
   ];
+   
 
-  const handleSaveBudget = () => {
-    const newBudget = parseFloat(editBudget);
-    if (!isNaN(newBudget) && newBudget > 0) {
-      setTotalBudget(newBudget);
-      setIsDialogOpen(false);
-    }
-  };
 
-  const handlePrevMonth = () => {
-    if (month === 1) {
-      setMonth(12);
-      setYear(year - 1);
-    } else {
-      setMonth(month - 1);
-    }
-  };
+const fechapresupuesto = presupuesto?.fecha
+? new Date(presupuesto.fecha)
+: null;
 
-  const handleNextMonth = () => {
-    if (month === 12) {
-      setMonth(1);
-      setYear(year + 1);
-    } else {
-      setMonth(month + 1);
-    }
-  };
+const month = fechapresupuesto ? fechapresupuesto.getMonth() + 1 : 0;
+const year = fechapresupuesto ? fechapresupuesto.getFullYear() : 0;
 
   return (
     <>
@@ -92,13 +122,13 @@ export default function BudgetPage() {
         {/* Month Navigation */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={handlePrevMonth}>
+            <Button variant="outline" size="icon" >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <div className="px-4 py-2 rounded-lg bg-muted font-semibold">
               {getMonthName(month)} {year}
             </div>
-            <Button variant="outline" size="icon" onClick={handleNextMonth}>
+            <Button variant="outline" size="icon" >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -118,7 +148,7 @@ export default function BudgetPage() {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="budget">Presupuesto Total ({mockUser.currency})</Label>
+                  <Label htmlFor="budget">Presupuesto Total ({user.currency})</Label>
                   <Input
                     id="budget"
                     type="number"
@@ -154,7 +184,7 @@ export default function BudgetPage() {
               <Wallet className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalBudget, mockUser.currency)}</div>
+              <div className="text-2xl font-bold"> {formatCurrency(valor ?? 0, user.currency || "COP")}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 Para {getMonthName(month)}
               </p>
@@ -169,7 +199,7 @@ export default function BudgetPage() {
               <TrendingDown className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-destructive">{formatCurrency(totalSpent, mockUser.currency)}</div>
+              <div className="text-2xl font-bold text-destructive">{formatCurrency(totalSpent, user.currency)}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 {budgetPercentage}% del presupuesto
               </p>
@@ -185,7 +215,7 @@ export default function BudgetPage() {
             </CardHeader>
             <CardContent>
               <div className={`text-2xl font-bold ${remaining >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {formatCurrency(remaining, mockUser.currency)}
+                {formatCurrency(remaining, user.currency)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {100 - budgetPercentage}% restante
@@ -196,7 +226,7 @@ export default function BudgetPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Sin Asignar
+                Total Ingresado
               </CardTitle>
               {unallocated > 0 ? (
                 <AlertCircle className="h-4 w-4 text-warning" />
@@ -206,7 +236,7 @@ export default function BudgetPage() {
             </CardHeader>
             <CardContent>
               <div className={`text-2xl font-bold ${unallocated > 0 ? 'text-warning' : 'text-success'}`}>
-                {formatCurrency(unallocated, mockUser.currency)}
+                {formatCurrency(unallocated, user.currency)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {unallocated > 0 ? 'Por distribuir' : 'Todo asignado'}
@@ -243,7 +273,7 @@ export default function BudgetPage() {
                         ))}
                       </Pie>
                       <Tooltip 
-                        formatter={(value: number) => formatCurrency(value, mockUser.currency)}
+                        formatter={(value: number) => formatCurrency(value, user.currency)}
                         contentStyle={{ 
                           backgroundColor: 'hsl(var(--card))', 
                           border: '1px solid hsl(var(--border))',
@@ -266,12 +296,12 @@ export default function BudgetPage() {
                       <div className="w-3 h-3 rounded-full bg-primary" />
                       <span>Gastado</span>
                     </div>
-                    <span className="font-medium">{formatCurrency(totalSpent, mockUser.currency)}</span>
+                    <span className="font-medium">{formatCurrency(totalSpent, user.currency)}</span>
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-muted" />
                       <span>Disponible</span>
                     </div>
-                    <span className="font-medium">{formatCurrency(remaining, mockUser.currency)}</span>
+                    <span className="font-medium">{formatCurrency(remaining, user.currency)}</span>
                   </div>
                 </div>
               </div>
@@ -319,7 +349,7 @@ export default function BudgetPage() {
                 <div className="p-3 rounded-lg bg-muted/50">
                   <p className="text-xs text-muted-foreground mb-1">Promedio diario permitido</p>
                   <p className="text-lg font-semibold">
-                    {formatCurrency(remaining / Math.max(1, 30 - new Date().getDate()), mockUser.currency)}
+                    {formatCurrency(remaining / Math.max(1, 30 - new Date().getDate()), user.currency)}
                   </p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50">
@@ -341,7 +371,7 @@ export default function BudgetPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2">
-              {currentBudget.categories.map((cat) => {
+              {categories.map((cat) => {
                 const category = getCategoryById(cat.categoryId);
                 const percentage = Math.round((cat.spent / cat.allocated) * 100);
                 const status = percentage >= 100 ? 'exceeded' : percentage >= 85 ? 'warning' : 'normal';
@@ -363,7 +393,7 @@ export default function BudgetPage() {
                         <div>
                           <h4 className="font-semibold">{category?.name}</h4>
                           <p className="text-xs text-muted-foreground">
-                            {formatCurrency(cat.spent, mockUser.currency)} de {formatCurrency(cat.allocated, mockUser.currency)}
+                            {formatCurrency(cat.spent, user.currency)} de {formatCurrency(cat.allocated, user.currency)}
                           </p>
                         </div>
                       </div>
@@ -381,9 +411,9 @@ export default function BudgetPage() {
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>
                         {status === 'exceeded' ? (
-                          <span className="text-destructive">Excedido por {formatCurrency(Math.abs(remaining), mockUser.currency)}</span>
+                          <span className="text-destructive">Excedido por {formatCurrency(Math.abs(remaining), user.currency)}</span>
                         ) : (
-                          `Disponible: ${formatCurrency(remaining, mockUser.currency)}`
+                          `Disponible: ${formatCurrency(remaining, user.currency)}`
                         )}
                       </span>
                       <Button variant="ghost" size="sm" className="h-6 text-xs">

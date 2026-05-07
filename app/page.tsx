@@ -104,11 +104,6 @@ export default function LandingPage() {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" asChild className="min-w-[200px]">
-                <Link href="/dashboard">
-                  Ver Demo
-                </Link>
-              </Button>
             </div>
           </div>
 

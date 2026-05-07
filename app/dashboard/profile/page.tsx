@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Camera, Save, User, Mail, Globe, Target, CreditCard } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { DashboardHeader } from "@/components/dashboard-header";
 import { mockUser } from "@/lib/mock-data";
+
+
+import {completeProfile,CompleteProfileRequest,getProfile,getUser} from "@/src/services/profileService";
+import { useEffect, useState } from "react";
+
+
 
 const currencies = [
   { value: 'MXN', label: 'Peso Mexicano (MXN)' },
@@ -29,24 +34,111 @@ const countries = [
 ];
 
 export default function ProfilePage() {
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    name: mockUser.name,
-    email: mockUser.email,
-    currency: mockUser.currency,
-    country: mockUser.country,
-    financialGoal: mockUser.financialGoal || '',
-  });
+ const [user, setUser] = useState<getUser | null>(null);
+ const[uptadeuser,setUpdateUser] = useState<CompleteProfileRequest>({
+    nombre: '',
+    idGenero: 0,
+    fechaNacimiento: '',
+    salario: 0,
+    idOcupacion: 0,
+ });
 
-  const handleSave = () => {
-    // Here you would save to backend
-    setIsEditing(false);
+ const [isEditing, setIsEditing] = useState(false);
+ const [loading, setLoading] = useState(true);
+
+   useEffect(() => {
+  const fetchProfile = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("No hay token");
+      }
+
+      const data = await getProfile(token);
+      setUser(data);
+
+      setUpdateUser({
+        nombre: data.nombre || "",
+        idGenero: data.idGenero || 0,
+        fechaNacimiento: data.fechaNacimiento ?? "",
+        salario: data.salario || 0,
+        idOcupacion: data.idOcupacion || 0,
+      });
+    } catch (error) {
+      console.error("Error cargando perfil:", error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  fetchProfile();
+}, []);
+
+
+ useEffect(() => {
+     const fetchProfile = async () => {
+       try {
+         const token = localStorage.getItem("token");
+ 
+         if (!token) {
+           throw new Error("No hay token");
+         }
+ 
+         const data = await getProfile(token);
+         setUser(data);
+       } catch (error) {
+         console.error("Error cargando perfil:", error);
+       } finally {
+         setLoading(false);
+       }
+     };
+ 
+     fetchProfile();
+   }, []);
+
+   if (loading) {
+    return <p className="text-center mt-10">Cargando perfil...</p>;
+  }
+
+  if (!user) {
+    return <p className="text-center mt-10">No se pudo cargar el usuario</p>;
+  }
+
+
+
+ const handleSave = async () => {
+  try {
+    const token = localStorage.getItem("token");
+
+    if (!token || !user?.id) return;
+
+    await completeProfile(user.id, uptadeuser, token);
+
+    const refreshedUser = await getProfile(token);
+
+    setUser(refreshedUser);
+
+    setUpdateUser({
+      nombre: refreshedUser.nombre ?? "",
+      idGenero: refreshedUser.idGenero ?? 0,
+      fechaNacimiento: refreshedUser.fechaNacimiento
+        ? refreshedUser.fechaNacimiento.substring(0, 10)
+        : "",
+      salario: refreshedUser.salario ?? 0,
+      idOcupacion: refreshedUser.idOcupacion ?? 0,
+    });
+
+    setIsEditing(false);
+  } catch (error) {
+    console.error("Error actualizando perfil:", error);
+  }
+};
 
   return (
     <>
       <DashboardHeader 
-        title="Mi Perfil" 
+        title="Mi Perfil"
         subtitle="Gestiona tu información personal"
       />
       
@@ -67,23 +159,25 @@ export default function ProfilePage() {
                     <Camera className="h-5 w-5" />
                   </button>
                 </div>
-                <h2 className="mt-4 text-xl font-semibold">{formData.name}</h2>
-                <p className="text-sm text-muted-foreground">{formData.email}</p>
-                
+                <h2 className="mt-4 text-xl font-semibold">{user?.nombre}</h2>
+                <p className="text-sm text-muted-foreground">{user?.email}</p>
+
                 <div className="w-full mt-6 space-y-3">
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-2">
                       <Globe className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm">País</span>
                     </div>
-                    <span className="text-sm font-medium">{formData.country}</span>
+                    <span className="text-sm font-medium"> 'Colombia'</span>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-2">
                       <CreditCard className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">Moneda</span>
+                      <span className="text-sm">Salario</span>
                     </div>
-                    <span className="text-sm font-medium">{formData.currency}</span>
+                    <span className="text-sm font-medium">
+                        ${(user?.salario ?? 0).toFixed(2)}
+                        </span>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-2">
@@ -91,7 +185,7 @@ export default function ProfilePage() {
                       <span className="text-sm">Meta</span>
                     </div>
                     <span className="text-sm font-medium truncate max-w-[120px]">
-                      {formData.financialGoal || 'Sin definir'}
+                      {'Sin definir'}
                     </span>
                   </div>
                 </div>
@@ -130,88 +224,109 @@ export default function ProfilePage() {
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      value={uptadeuser.nombre}
+                      onChange={(e) => setUpdateUser({ ...uptadeuser, nombre: e.target.value })}
                       disabled={!isEditing}
                       className="pl-10"
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Correo Electrónico</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      disabled={!isEditing}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-              </div>
 
+                <div className="space-y-2">
+                    <Label htmlFor="email">Correo Electrónico</Label>
+
+                    <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                        id="email"
+                        type="email"
+                        value={user?.email ?? ""}
+                        disabled
+                        className="pl-10"
+                        />
+                    </div>
+                    </div>
+
+                <div className="space-y-2">
+                <Label>Fecha de nacimiento</Label>
+                <Input
+                    type="date"
+                    value={uptadeuser.fechaNacimiento?.substring(0, 10) ?? ""}
+                    onChange={(e) =>
+                        setUpdateUser({
+                        ...uptadeuser,
+                        fechaNacimiento: e.target.value,
+                        })
+                    }
+                    disabled={!isEditing}
+                    />
+                </div>
+
+            
+            </div>
               <Separator />
 
               <div className="grid gap-4 md:grid-cols-2">
+                
                 <div className="space-y-2">
-                  <Label htmlFor="country">País o Región</Label>
-                  <Select 
-                    value={formData.country} 
-                    onValueChange={(value) => setFormData({ ...formData, country: value })}
-                    disabled={!isEditing}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona tu país" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {countries.map((country) => (
-                        <SelectItem key={country} value={country}>
-                          {country}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="currency">Moneda Preferida</Label>
-                  <Select 
-                    value={formData.currency} 
-                    onValueChange={(value) => setFormData({ ...formData, currency: value })}
-                    disabled={!isEditing}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona tu moneda" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {currencies.map((currency) => (
-                        <SelectItem key={currency.value} value={currency.value}>
-                          {currency.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <Label>Género</Label>
+                    <select
+                        value={uptadeuser.idGenero}
+                        onChange={(e) =>
+                        setUpdateUser({
+                            ...uptadeuser,
+                            idGenero: Number(e.target.value),
+                        })
+                        }
+                        disabled={!isEditing}
+                        className="w-full p-2 border rounded"
+                    >
+                        <option value={0}>Seleccionar</option>
+                        <option value={1}>Masculino</option>
+                        <option value={2}>Femenino</option>
+                    </select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Ocupación</Label>
+                        <select
+                            value={uptadeuser.idOcupacion}
+                            onChange={(e) =>
+                            setUpdateUser({
+                                ...uptadeuser,
+                                idOcupacion: Number(e.target.value),
+                            })
+                            }
+                            disabled={!isEditing}
+                            className="w-full p-2 border rounded"
+                        >
+                            <option value={0}>Seleccionar</option>
+                            <option value={1}>Estudiante</option>
+                            <option value={2}>Empleado</option>
+                            <option value={3}>Independiente</option>
+                        </select>
+                        </div>
+                
+
+
               </div>
 
               <Separator />
 
               <div className="space-y-2">
-                <Label htmlFor="financialGoal">Meta Financiera (Opcional)</Label>
-                <Textarea
-                  id="financialGoal"
-                  placeholder="Ej: Ahorrar para un viaje, comprar una casa, fondo de emergencia..."
-                  value={formData.financialGoal}
-                  onChange={(e) => setFormData({ ...formData, financialGoal: e.target.value })}
-                  disabled={!isEditing}
-                  className="min-h-[100px]"
+                <Label>Salario</Label>
+                <Input
+                    type="number"
+                    value={uptadeuser.salario}
+                    onChange={(e) =>
+                    setUpdateUser({
+                        ...uptadeuser,
+                        salario: Number(e.target.value),
+                    })
+                    }
+                    disabled={!isEditing}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Define una meta que te motive a mejorar tus finanzas
-                </p>
-              </div>
+                </div>
             </CardContent>
           </Card>
         </div>

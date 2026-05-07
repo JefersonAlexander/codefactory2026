@@ -1,0 +1,59 @@
+import { useEffect, useState } from "react";
+
+import {
+  getHistorialPresupuestos,
+  getPresupuestoActivo,
+  currentBudget,
+} from "@/src/services/presupuestoService";
+
+export function useBudget() {
+  const [presupuesto, setPresupuesto] = useState<currentBudget | null>(null);
+  const [historial, setHistorial] = useState<currentBudget[]>([]);
+  const [indexActual, setIndexActual] = useState(0);
+  const [editBudget, setEditBudget] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          console.error("No hay token en localStorage");
+          return;
+        }
+
+        const presupuestoActivo = await getPresupuestoActivo();
+
+        setPresupuesto(presupuestoActivo);
+        setEditBudget(String(presupuestoActivo.valor));
+
+        const historialData = await getHistorialPresupuestos();
+
+        setHistorial(historialData);
+
+        if (historialData.length > 0) {
+          setIndexActual(0);
+        }
+      } catch (error) {
+        console.error("Error cargando presupuesto:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, []);
+
+  return {
+    presupuesto,
+    setPresupuesto,
+    historial,
+    setHistorial,
+    indexActual,
+    setIndexActual,
+    editBudget,
+    setEditBudget,
+    loading,
+  };
+}
