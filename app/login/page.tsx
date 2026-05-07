@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
-import { loginWithGoogle, getProfile } from "@/src/services/authService";
+import { loginWithGoogle} from "@/src/services/authService";
 
 
 
@@ -49,6 +49,12 @@ export default function LoginPage() {
     }   
     
   };
+
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+  if (!googleClientId) {
+    return <p>Falta NEXT_PUBLIC_GOOGLE_CLIENT_ID en Vercel</p>;
+  }
 
   return (
     <div className="min-h-screen flex">
