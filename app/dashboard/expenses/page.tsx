@@ -9,10 +9,6 @@ import {
   Search,
   Filter,
   ArrowDownRight,
-  CreditCard,
-  Banknote,
-  Wallet,
-  ArrowRightLeft,
   Utensils,
   Car,
   Home,
@@ -53,11 +49,16 @@ import {
 } from "@/components/ui/select";
 import { DashboardHeader } from "@/components/dashboard-header";
 import {
-  recentTransactions,
   expenseCategories,
   formatCurrency,
-  getCategoryById,
 } from "@/lib/mock-data";
+
+
+import {useExpenses} from "@/hooks/useExpenses"
+import {useCategories} from "@/hooks/useCategory"
+
+
+
 
 type User = {
   nombre: string;
@@ -76,23 +77,10 @@ const iconMap: Record<string, ElementType> = {
   ellipsis: MoreHorizontal,
 };
 
-const paymentMethodIcons: Record<string, ElementType> = {
-  cash: Banknote,
-  credit: CreditCard,
-  debit: Wallet,
-  transfer: ArrowRightLeft,
-  other: MoreHorizontal,
-};
 
-const paymentMethods = [
-  { value: "cash", label: "Efectivo" },
-  { value: "credit", label: "Tarjeta de Crédito" },
-  { value: "debit", label: "Tarjeta de Débito" },
-  { value: "transfer", label: "Transferencia" },
-  { value: "other", label: "Otro" },
-];
 
 export default function ExpensesPage() {
+
   const [user, setUser] = useState<User>({
     nombre: "Usuario",
     email: "",
@@ -102,13 +90,14 @@ export default function ExpensesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
+  const{expenses,setExpenses,totalExpenses,loading,loadIExpenses,addExpenses,editExpenses}= useExpenses();
+  const {categories,loadCategories,addCategory,editCategory,removeCategory,} = useCategories();
 
   const [newExpense, setNewExpense] = useState({
     amount: "",
     date: new Date().toISOString().split("T")[0],
-    categoryId: "",
     description: "",
-    paymentMethod: "",
+    categoryId: "",
   });
 
   useEffect(() => {
@@ -125,52 +114,54 @@ export default function ExpensesPage() {
     }
   }, []);
 
-  const expenseTransactions = recentTransactions.filter(
-    (transaction) => transaction.type === "expense"
-  );
+  const expensesByCategory = expenses.reduce<Record<number, number>>(
+  (acc, expense) => {
+    acc[expense.idCategoria] =
+      (acc[expense.idCategoria] || 0) + expense.valor;
 
-  const totalExpenses = expenseTransactions.reduce(
-    (acc, transaction) => acc + transaction.amount,
-    0
-  );
+    return acc;
+  },
+  {}
+);
 
-  const filteredTransactions = expenseTransactions.filter((transaction) => {
-    const matchesSearch = transaction.description
+  
+
+
+  const filteredTransactions = expenses.filter((expense) => {
+    const matchesSearch = expense.descripcion
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
 
     const matchesCategory =
-      filterCategory === "all" || transaction.categoryId === filterCategory;
+      filterCategory === "all" ||
+      expense.idCategoria === Number(filterCategory);
 
     return matchesSearch && matchesCategory;
   });
 
-  const expensesByCategory = expenseTransactions.reduce((acc, transaction) => {
-    acc[transaction.categoryId] =
-      (acc[transaction.categoryId] || 0) + transaction.amount;
+  
 
-    return acc;
-  }, {} as Record<string, number>);
+  const handleCreateExpense = async () => { 
+    const storedUser = localStorage.getItem("user");  
+    if (!storedUser) return; 
+    const parsedUser = JSON.parse(storedUser); 
+      await addExpenses({    
+          valor: Number(newExpense.amount),
+          fecha: newExpense.date,  
+          descripcion: newExpense.description,    
+          idUsuario: parsedUser.id,    
+          idCategoria: Number(newExpense.categoryId),
+          }); 
+        setIsDialogOpen(false);  setNewExpense({   
+            amount: "",
+            date: new Date().toISOString().split("T")[0], 
+            description: "",
+            categoryId: ""  
+          });};
 
-  const expensesByMethod = expenseTransactions.reduce((acc, transaction) => {
-    const method = transaction.paymentMethod || "other";
-
-    acc[method] = (acc[method] || 0) + transaction.amount;
-
-    return acc;
-  }, {} as Record<string, number>);
-
-  const handleCreateExpense = () => {
-    setIsDialogOpen(false);
-
-    setNewExpense({
-      amount: "",
-      date: new Date().toISOString().split("T")[0],
-      categoryId: "",
-      description: "",
-      paymentMethod: "",
-    });
-  };
+  if (loading) {
+    return <p>Cargando gastos...</p>;
+  }
 
   return (
     <>
@@ -197,7 +188,6 @@ export default function ExpensesPage() {
               <div className="flex items-center gap-1 mt-2">
                 <ArrowDownRight className="h-3 w-3 text-success" />
                 <span className="text-xs text-success">
-                  -8% vs mes anterior
                 </span>
               </div>
             </CardContent>
@@ -213,7 +203,7 @@ export default function ExpensesPage() {
 
             <CardContent>
               <div className="text-2xl font-bold">
-                {expenseTransactions.length}
+                {expenses.length}
               </div>
               <p className="text-xs text-muted-foreground mt-2">
                 Gastos registrados
@@ -232,7 +222,7 @@ export default function ExpensesPage() {
             <CardContent>
               <div className="text-2xl font-bold">
                 {formatCurrency(
-                  totalExpenses / Math.max(1, expenseTransactions.length),
+                  totalExpenses / Math.max(1, expenses.length),
                   user.currency
                 )}
               </div>
@@ -241,113 +231,60 @@ export default function ExpensesPage() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Por Método de Pago</CardTitle>
-            <CardDescription>Cómo estás pagando tus gastos</CardDescription>
-          </CardHeader>
 
-          <CardContent>
-            <div className="grid gap-3 md:grid-cols-4">
-              {paymentMethods.map((method) => {
-                const amount = expensesByMethod[method.value] || 0;
-                const percentage =
-                  totalExpenses > 0
-                    ? Math.round((amount / totalExpenses) * 100)
-                    : 0;
+       <Card>
+  <CardHeader>
+    <CardTitle>Gastos por Categoría</CardTitle>
+    <CardDescription>Dónde estás gastando más</CardDescription>
+  </CardHeader>
 
-                const IconComponent =
-                  paymentMethodIcons[method.value] || MoreHorizontal;
+  <CardContent>
+    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+      {categories
+        .map((category) => ({
+          ...category,
+          amount: expensesByCategory[category.id] || 0,
+        }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 8)
+        .map((category) => {
+          const percentage =
+            totalExpenses > 0
+              ? Math.round((category.amount / totalExpenses) * 100)
+              : 0;
 
-                return (
-                  <div
-                    key={method.value}
-                    className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <IconComponent className="h-5 w-5 text-primary" />
-                      </div>
+          const IconComponent = MoreHorizontal;
 
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {method.label}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {percentage}%
-                        </p>
-                      </div>
-                    </div>
+          return (
+            <div
+              key={category.id}
+              className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-muted">
+                  <IconComponent className="h-5 w-5 text-muted-foreground" />
+                </div>
 
-                    <p className="text-lg font-semibold">
-                      {formatCurrency(amount, user.currency)}
-                    </p>
-                  </div>
-                );
-              })}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {category.nombre}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {percentage}%
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-lg font-semibold">
+                {formatCurrency(category.amount, user.currency)}
+              </p>
             </div>
-          </CardContent>
-        </Card>
+          );
+        })}
+    </div>
+  </CardContent>
+</Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Gastos por Categoría</CardTitle>
-            <CardDescription>Dónde estás gastando más</CardDescription>
-          </CardHeader>
-
-          <CardContent>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-              {expenseCategories
-                .map((category) => ({
-                  ...category,
-                  amount: expensesByCategory[category.id] || 0,
-                }))
-                .sort((a, b) => b.amount - a.amount)
-                .slice(0, 8)
-                .map((category) => {
-                  const percentage =
-                    totalExpenses > 0
-                      ? Math.round((category.amount / totalExpenses) * 100)
-                      : 0;
-
-                  const IconComponent =
-                    iconMap[category.icon] || MoreHorizontal;
-
-                  return (
-                    <div
-                      key={category.id}
-                      className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <div
-                          className="w-10 h-10 rounded-lg flex items-center justify-center"
-                          style={{ backgroundColor: `${category.color}20` }}
-                        >
-                          <IconComponent
-                            className="h-5 w-5"
-                            style={{ color: category.color }}
-                          />
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {category.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {percentage}%
-                          </p>
-                        </div>
-                      </div>
-
-                      <p className="text-lg font-semibold">
-                        {formatCurrency(category.amount, user.currency)}
-                      </p>
-                    </div>
-                  );
-                })}
-            </div>
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -369,20 +306,24 @@ export default function ExpensesPage() {
               </div>
 
               <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-full sm:w-40">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Categoría" />
-                </SelectTrigger>
+              <SelectTrigger className="w-full sm:w-40">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Categoría" />
+              </SelectTrigger>
 
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {expenseCategories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+
+                {categories.map((category) => (
+                  <SelectItem
+                    key={category.id}
+                    value={String(category.id)}
+                  >
+                    {category.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
@@ -439,6 +380,7 @@ export default function ExpensesPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Categoría</Label>
+
                         <Select
                           value={newExpense.categoryId}
                           onValueChange={(value) =>
@@ -453,37 +395,12 @@ export default function ExpensesPage() {
                           </SelectTrigger>
 
                           <SelectContent>
-                            {expenseCategories.map((cat) => (
-                              <SelectItem key={cat.id} value={cat.id}>
-                                {cat.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Método de Pago</Label>
-                        <Select
-                          value={newExpense.paymentMethod}
-                          onValueChange={(value) =>
-                            setNewExpense({
-                              ...newExpense,
-                              paymentMethod: value,
-                            })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar" />
-                          </SelectTrigger>
-
-                          <SelectContent>
-                            {paymentMethods.map((method) => (
+                            {categories.map((category) => (
                               <SelectItem
-                                key={method.value}
-                                value={method.value}
+                                key={category.id}
+                                value={String(category.id)}
                               >
-                                {method.label}
+                                {category.nombre}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -537,54 +454,27 @@ export default function ExpensesPage() {
                   </p>
                 </div>
               ) : (
-                filteredTransactions.map((transaction) => {
-                  const category = getCategoryById(transaction.categoryId);
-                  const IconComponent =
-                    iconMap[category?.icon || ""] || MoreHorizontal;
-
-                  const PaymentIcon =
-                    paymentMethodIcons[transaction.paymentMethod || "other"] ||
-                    MoreHorizontal;
-
-                  const paymentLabel =
-                    paymentMethods.find(
-                      (method) => method.value === transaction.paymentMethod
-                    )?.label || "Otro";
-
+                filteredTransactions.map((expenses) => {
+                  
+                  
                   return (
                     <div
-                      key={transaction.id}
+                      key={expenses.id}
                       className="flex items-center gap-4 p-4 rounded-lg border bg-card hover:shadow-md transition-shadow"
                     >
-                      <div
-                        className="w-12 h-12 rounded-xl flex items-center justify-center"
-                        style={{
-                          backgroundColor: `${category?.color || "#999999"}20`,
-                        }}
-                      >
-                        <IconComponent
-                          className="h-6 w-6"
-                          style={{ color: category?.color || "#999999" }}
-                        />
-                      </div>
+                     
 
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">
-                          {transaction.description}
+                          {expenses.descripcion}
                         </p>
 
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <Badge variant="secondary" className="text-xs">
-                            {category?.name || "Sin categoría"}
-                          </Badge>
+                          
 
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <PaymentIcon className="h-3 w-3" />
-                            <span>{paymentLabel}</span>
-                          </div>
-
+                      
                           <span className="text-xs text-muted-foreground">
-                            {new Date(transaction.date).toLocaleDateString(
+                            {new Date(expenses.fecha).toLocaleDateString(
                               "es-MX",
                               {
                                 day: "numeric",
@@ -598,7 +488,7 @@ export default function ExpensesPage() {
 
                       <div className="text-right">
                         <p className="text-lg font-semibold text-destructive">
-                          -{formatCurrency(transaction.amount, user.currency)}
+                          -{formatCurrency(expenses.valor, user.currency)}
                         </p>
                       </div>
                     </div>

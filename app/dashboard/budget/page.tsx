@@ -27,7 +27,7 @@ import { useEffect } from "react";
 import {  formatCurrency, getCategoryById,getMonthName, } from "@/lib/mock-data"; 
 import {PieChart,Pie,Cell,ResponsiveContainer,Tooltip,Legend} from "recharts";
 
-import {currentBudget,getPresupuestoActivo,crearPresupuesto,actualizarPresupuesto,getHistorialPresupuestos,} from "@/src/services/presupuestoService";
+import {currentBudget,getPresupuestoActivo,crearPresupuesto,actualizarPresupuesto} from "@/src/services/presupuestoService";
 import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 import { useBudget } from "@/hooks/useBudget";
 
@@ -65,7 +65,7 @@ if (storedUser) {
 
 
 const {incomes, expenses,totalIncome,totalExpenses,loading,} = useFinancialSummary();
-const {presupuesto,setPresupuesto,historial,indexActual,editBudget,setEditBudget,loading:loadingBudget} = useBudget();
+const {presupuesto,setPresupuesto,indexActual,editBudget,setEditBudget,loading:loadingBudget} = useBudget();
 
 
 const valor = Number(presupuesto?.valor || 0);

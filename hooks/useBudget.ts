@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
 import {
-  getHistorialPresupuestos,
   getPresupuestoActivo,
   currentBudget,
 } from "@/src/services/presupuestoService";
@@ -27,14 +26,6 @@ export function useBudget() {
 
         setPresupuesto(presupuestoActivo);
         setEditBudget(String(presupuestoActivo.valor));
-
-        const historialData = await getHistorialPresupuestos();
-
-        setHistorial(historialData);
-
-        if (historialData.length > 0) {
-          setIndexActual(0);
-        }
       } catch (error) {
         console.error("Error cargando presupuesto:", error);
       } finally {
@@ -48,8 +39,6 @@ export function useBudget() {
   return {
     presupuesto,
     setPresupuesto,
-    historial,
-    setHistorial,
     indexActual,
     setIndexActual,
     editBudget,

@@ -1,30 +1,18 @@
 "use client";
 
 import { useEffect, useState, type ElementType } from "react";
-import {
-  Plus,
-  TrendingUp,
-  Calendar,
-  DollarSign,
-  Search,
-  Filter,
-  ArrowUpRight,
-  Wallet,
-  PiggyBank,
-  MoreHorizontal,
-} from "lucide-react";
+import {Plus,TrendingUp,Calendar,DollarSign,Search,Filter,ArrowUpRight,Wallet,PiggyBank,MoreHorizontal,} from "lucide-react";
 
 import {Card,CardContent,CardDescription,CardHeader,CardTitle} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import {Dialog,DialogContent,DialogDescription,DialogFooter,DialogHeader,DialogTitle,DialogTrigger,} from "@/components/ui/dialog";
 import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue,} from "@/components/ui/select";
 
 import { DashboardHeader } from "@/components/dashboard-header";
-import {recentTransactions,formatCurrency,getCategoryById,} from "@/lib/mock-data";
+import {formatCurrency} from "@/lib/mock-data";
 import { useIncomes } from "@/hooks/useIncomes";
 
 const incomeCategories = [
@@ -34,13 +22,7 @@ const incomeCategories = [
   { id: 4, name: "Otros", icon: "moreHorizontal", color: "#6b7280" },
 ];
 
-function getIncomeCategoryById(idCategoria: number) {
-  return incomeCategories.find(
-    (category) => category.id === idCategoria
-  );
-}
-
-type User = {
+type User = { 
   nombre: string;
   email: string;
   currency: string;
@@ -54,6 +36,7 @@ const iconMap: Record<string, ElementType> = {
 };
 
 export default function IncomePage() {
+
   const [user, setUser] = useState<User>({
     nombre: "Usuario",
     email: "",
@@ -61,7 +44,6 @@ export default function IncomePage() {
   });
 
   const {incomes,totalIncome,loading,addIncome,editIncome,} = useIncomes();
-
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
@@ -87,6 +69,8 @@ export default function IncomePage() {
     }
   }, []);
 
+  
+
   const filteredIncomes = incomes.filter((income) => {
   const matchesSearch = income.descripcion
     .toLowerCase()
@@ -100,18 +84,22 @@ export default function IncomePage() {
 });
   
   
-      const handleCreateIncome = async () => { 
-         const storedUser = localStorage.getItem("user");  
-         if (!storedUser) return; 
-          const parsedUser = JSON.parse(storedUser); 
-           await addIncome({    valor: Number(newIncome.amount), 
-               fecha: newIncome.date,    
-               descripcion: newIncome.description,    
-               idUsuario: parsedUser.id,    
-               idCategoria: Number(newIncome.categoryId),  }); 
-              setIsDialogOpen(false);  setNewIncome({   
-                 amount: "",    date: new Date().toISOString().split("T")[0], 
-                    categoryId: "",    description: "",  });};
+const handleCreateIncome = async () => { 
+    const storedUser = localStorage.getItem("user");  
+    if (!storedUser) return; 
+    const parsedUser = JSON.parse(storedUser); 
+      await addIncome({    
+          valor: Number(newIncome.amount), 
+          fecha: newIncome.date,    
+          descripcion: newIncome.description,    
+          idUsuario: parsedUser.id,    
+          idCategoria: Number(newIncome.categoryId),  }); 
+        setIsDialogOpen(false);  setNewIncome({   
+            amount: "",
+            date: new Date().toISOString().split("T")[0], 
+          categoryId: "",    
+          description: "",  
+        });};
 
 
   if (loading) {
@@ -200,7 +188,7 @@ export default function IncomePage() {
           </Card>
         </div>
 
-        <Card>
+  <Card>
   <CardHeader>
     <CardTitle>
       Ingresos por Categoría
@@ -444,7 +432,8 @@ export default function IncomePage() {
             </div>
           </CardHeader>
 
-          <CardContent>
+
+  <CardContent>
   <div className="space-y-3">
     {filteredIncomes.length === 0 ? (
       <div className="text-center py-8">

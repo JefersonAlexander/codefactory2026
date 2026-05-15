@@ -47,18 +47,6 @@ export async function crearPresupuesto(valor: number): Promise<currentBudget> {
   return response.json();
 }
 
-export async function getHistorialPresupuestos(): Promise<currentBudget[]> {
-  const response = await fetch(`${API_URL}/presupuesto/historial`, {
-    method: "GET",
-    headers: getAuthHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error("Error obteniendo el historial de presupuestos");
-  }
-
-  return response.json();
-}
 
 export async function actualizarPresupuesto(valor: number) {
   const response = await fetch(`${API_URL}/api/presupuesto`, {
