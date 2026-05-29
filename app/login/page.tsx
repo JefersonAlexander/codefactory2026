@@ -140,6 +140,8 @@ export default function LoginPage() {
             <CardContent className="space-y-4">
               <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
                 <GoogleLogin
+                useOneTap={false}
+                auto_select={false}
                 onSuccess={handleGoogleSuccess}
                 onError={() => {
                     console.log("Login con Google falló");

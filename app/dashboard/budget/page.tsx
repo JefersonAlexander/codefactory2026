@@ -64,8 +64,8 @@ if (storedUser) {
 }, []);
 
 
-const {incomes, expenses,totalIncome,totalExpenses,loading,} = useFinancialSummary();
-const {presupuesto,setPresupuesto,indexActual,editBudget,setEditBudget,loading:loadingBudget} = useBudget();
+const {totalIncome,totalExpenses,} = useFinancialSummary();
+const {presupuesto,setPresupuesto,editBudget,setEditBudget,loading:loadingBudget} = useBudget();
 
 
 const valor = Number(presupuesto?.valor || 0);

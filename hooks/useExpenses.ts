@@ -39,7 +39,7 @@ export function useExpenses() {
     try {
       const token = localStorage.getItem("token");
 
-      if (!token) return;
+      if (!token) throw new Error("No hay token de autenticacion");
 
       const newExpense = await createExpense(data, token);
 
@@ -48,6 +48,7 @@ export function useExpenses() {
       return newExpense;
     } catch (error) {
       console.error("Error creando gasto:", error);
+      throw error;
     }
   }
 
@@ -55,7 +56,7 @@ export function useExpenses() {
     try {
       const token = localStorage.getItem("token");
 
-      if (!token) return;
+      if (!token) throw new Error("No hay token de autenticacion");
 
       const updatedExpense = await updateExpense(id, data, token);
 
@@ -67,7 +68,23 @@ export function useExpenses() {
 
       return updatedExpense;
     } catch (error) {
-      console.error("Error actualizando ingreso:", error);
+      console.error("Error actualizando gasto:", error);
+      throw error;
+    }
+  }
+
+  async function removeExpenses(id: number) {
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) throw new Error("No hay token de autenticacion");
+
+      await deleteExpense(id, token);
+
+      setExpenses((prev) => prev.filter((expense) => expense.id !== id));
+    } catch (error) {
+      console.error("Error eliminando gasto:", error);
+      throw error;
     }
   }
 
@@ -88,5 +105,6 @@ export function useExpenses() {
     loadIExpenses,
     addExpenses,
     editExpenses,
+    removeExpenses,
   };
 }

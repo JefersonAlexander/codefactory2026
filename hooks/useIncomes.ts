@@ -4,6 +4,7 @@ import {
   getIncomesByUser,
   createIncome,
   updateIncome,
+  deleteIncome,
   IncomeRequest,
   IncomeResponse,
 } from "@/src/services/incomeService";
@@ -37,7 +38,7 @@ export function useIncomes() {
     try {
       const token = localStorage.getItem("token");
 
-      if (!token) return;
+      if (!token) throw new Error("No hay token de autenticacion");
 
       const newIncome = await createIncome(data, token);
 
@@ -46,6 +47,7 @@ export function useIncomes() {
       return newIncome;
     } catch (error) {
       console.error("Error creando ingreso:", error);
+      throw error;
     }
   }
 
@@ -53,7 +55,7 @@ export function useIncomes() {
     try {
       const token = localStorage.getItem("token");
 
-      if (!token) return;
+      if (!token) throw new Error("No hay token de autenticacion");
 
       const updatedIncome = await updateIncome(id, data, token);
 
@@ -66,6 +68,22 @@ export function useIncomes() {
       return updatedIncome;
     } catch (error) {
       console.error("Error actualizando ingreso:", error);
+      throw error;
+    }
+  }
+
+  async function removeIncome(id: number) {
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) throw new Error("No hay token de autenticacion");
+
+      await deleteIncome(id, token);
+
+      setIncomes((prev) => prev.filter((income) => income.id !== id));
+    } catch (error) {
+      console.error("Error eliminando ingreso:", error);
+      throw error;
     }
   }
 
@@ -86,5 +104,6 @@ export function useIncomes() {
     loadIncomes,
     addIncome,
     editIncome,
+    removeIncome,
   };
 }
