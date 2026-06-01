@@ -260,7 +260,7 @@ export default function ExpensesPage() {
     <>
       <DashboardHeader
         title="Gastos"
-        subtitle={`Registra y controla tus gastos, ${user.nombre}`}
+        subtitle={`Registra y controla tus gastos`}
       />
 
       <main className="flex-1 p-6 space-y-6">
@@ -320,57 +320,6 @@ export default function ExpensesPage() {
             </CardContent>
           </Card>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Gastos por Categoria</CardTitle>
-            <CardDescription>Donde estas gastando mas</CardDescription>
-          </CardHeader>
-
-          <CardContent>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-              {categories
-                .map((category) => ({
-                  ...category,
-                  amount: expensesByCategory[category.id] || 0,
-                }))
-                .sort((a, b) => b.amount - a.amount)
-                .slice(0, 8)
-                .map((category) => {
-                  const percentage =
-                    totalExpenses > 0
-                      ? Math.round((category.amount / totalExpenses) * 100)
-                      : 0;
-
-                  return (
-                    <div
-                      key={category.id}
-                      className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-muted">
-                          <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {category.nombre}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {percentage}%
-                          </p>
-                        </div>
-                      </div>
-
-                      <p className="text-lg font-semibold">
-                        {formatCurrency(category.amount, user.currency)}
-                      </p>
-                    </div>
-                  );
-                })}
-            </div>
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">

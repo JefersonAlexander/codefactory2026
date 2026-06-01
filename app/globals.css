@@ -3,7 +3,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
+:root { 
   /* Warm FinZen color palette - Orange, Coral, Terracotta theme */
   --background: oklch(0.98 0.01 85);
   --foreground: oklch(0.25 0.02 50);

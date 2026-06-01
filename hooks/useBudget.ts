@@ -7,7 +7,6 @@ import {
 
 export function useBudget() {
   const [presupuesto, setPresupuesto] = useState<currentBudget | null>(null);
-  const [historial, setHistorial] = useState<currentBudget[]>([]);
   const [indexActual, setIndexActual] = useState(0);
   const [editBudget, setEditBudget] = useState("");
   const [loading, setLoading] = useState(true);

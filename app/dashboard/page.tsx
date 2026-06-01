@@ -1,15 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {TrendingUp,TrendingDown,Wallet,PiggyBank,ArrowUpRight,ArrowDownRight,AlertTriangle,} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {TrendingUp,TrendingDown,Wallet,PiggyBank,ArrowUpRight,ArrowDownRight,Utensils,Car,Home,Gamepad2,HeartPulse,GraduationCap,ShoppingBag,Tag,} from "lucide-react";
 import {Card,CardContent,CardDescription,CardHeader,CardTitle,} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { DashboardHeader } from "@/components/dashboard-header";
-import {recentTransactions,formatCurrency,getCategoryById,getMonthName,currentBudget} from "@/lib/mock-data";
+import {formatCurrency,getMonthName,currentBudget} from "@/lib/mock-data";
 import {BarChart,Bar,XAxis,YAxis,CartesianGrid,Tooltip,ResponsiveContainer,PieChart,Pie,Cell,Legend,AreaChart,Area,} from "recharts";
 import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 import { useBudget } from "@/hooks/useBudget";
+import { useCategoryReport } from "@/hooks/useCategoryReport";
+import { 
+  Flame, 
+  ArrowRight, 
+  Shield, 
+  Zap,
+  BarChart3,
+  Target,
+  CheckCircle2
+} from "lucide-react";
 
 type User = {
   nombre: string;
@@ -18,26 +27,52 @@ type User = {
 };
 
 
-const categorySpendingData = currentBudget.categories.map((cat) => {
-  const category = getCategoryById(cat.categoryId);
+const features = [
+  {
+    icon: Wallet,
+    title: "Control de Presupuesto",
+    description: "Define y gestiona tu presupuesto mensual con categorías personalizadas.",
+  },
+  {
+    icon: BarChart3,
+    title: "Reportes Visuales",
+    description: "Visualiza tus finanzas con gráficas claras y reportes detallados.",
+  },
+  {
+    icon: TrendingUp,
+    title: "Seguimiento de Ingresos",
+    description: "Registra todos tus ingresos y observa tu progreso financiero.",
+  },
+  {
+    icon: Target,
+    title: "Metas de Ahorro",
+    description: "Establece y alcanza tus objetivos financieros paso a paso.",
+  },
+];
 
-  return {
-    name: category?.name || cat.categoryId,
-    allocated: cat.allocated,
-    spent: cat.spent,
-    fill: category?.color || "#e67e22",
-  };
-});
+const categoryConfig = {
+  "Alimentacion": { icon: Utensils, color: "#e67e22" },
+  "Alimentación": { icon: Utensils, color: "#e67e22" },
+  Transporte: { icon: Car, color: "#3498db" },
+  Vivienda: { icon: Home, color: "#9b59b6" },
+  Entretenimiento: { icon: Gamepad2, color: "#e74c3c" },
+  Salud: { icon: HeartPulse, color: "#1abc9c" },
+  Educacion: { icon: GraduationCap, color: "#f39c12" },
+  Educación: { icon: GraduationCap, color: "#f39c12" },
+  Compras: { icon: ShoppingBag, color: "#95a5a6" },
+} as const;
 
-const pieChartData = currentBudget.categories.map((cat) => {
-  const category = getCategoryById(cat.categoryId);
+const fallbackCategoryConfig = {
+  icon: Tag,
+  color: "#e67e22",
+};
 
-  return {
-    name: category?.name || cat.categoryId,
-    value: cat.spent,
-    color: category?.color || "#e67e22",
-  };
-});
+function getDashboardDateRange(month: number, year: number) {
+  const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+  const endDate = new Date(year, month, 0).toISOString().split("T")[0];
+
+  return { startDate, endDate };
+}
 
 const monthlyTrendData = [
   { month: "Ene", ingresos: 25000, gastos: 27000 },
@@ -54,7 +89,13 @@ export default function DashboardPage() {
   });
 
   const {incomes, expenses,totalIncome,totalExpenses,loading,} = useFinancialSummary();
-  const {presupuesto,historial,indexActual,editBudget,setEditBudget,loading:loadingBudget} = useBudget();
+  const {presupuesto,indexActual,editBudget,setEditBudget,loading:loadingBudget} = useBudget();
+  const {
+    report: categoryReport,
+    loading: loadingCategoryReport,
+    error: categoryReportError,
+    fetchReport,
+  } = useCategoryReport();
 
   const totalSpent = totalExpenses;
 
@@ -65,6 +106,46 @@ export default function DashboardPage() {
 
 
 const balance = totalIncome - totalExpenses;
+const dashboardDateRange = useMemo(
+  () => getDashboardDateRange(currentBudget.month, currentBudget.year),
+  []
+);
+
+const categoryExpenses = categoryReport?.categoryExpenses ?? [];
+
+const pieChartData = useMemo(
+  () =>
+    categoryExpenses.map((item) => {
+      const config =
+        categoryConfig[item.categoryName as keyof typeof categoryConfig] ||
+        fallbackCategoryConfig;
+
+      return {
+        name: item.categoryName,
+        value: item.amount,
+        percentage: item.percentage,
+        color: config.color,
+      };
+    }),
+  [categoryExpenses]
+);
+
+const categorySpendingData = useMemo(
+  () =>
+    categoryExpenses.map((item) => {
+      const config =
+        categoryConfig[item.categoryName as keyof typeof categoryConfig] ||
+        fallbackCategoryConfig;
+
+      return {
+        name: item.categoryName,
+        amount: item.amount,
+        percentage: item.percentage,
+        fill: config.color,
+      };
+    }),
+  [categoryExpenses]
+);
 
 
   useEffect(() => {
@@ -80,6 +161,15 @@ const balance = totalIncome - totalExpenses;
       });
     }
   }, []);
+
+  useEffect(() => {
+    fetchReport(dashboardDateRange.startDate, dashboardDateRange.endDate);
+  }, [dashboardDateRange.endDate, dashboardDateRange.startDate, fetchReport]);
+
+  useEffect(() => {
+    console.log("Reporte recibido:", categoryReport);
+    console.log("Category Expenses:", categoryReport?.categoryExpenses);
+  }, [categoryReport]);
 
   const firstName = user.nombre.split(" ")[0];
 
@@ -162,9 +252,7 @@ const balance = totalIncome - totalExpenses;
 
               <div className="flex items-center gap-1 mt-2">
                 <ArrowDownRight className="h-3 w-3 text-success" />
-                <span className="text-xs text-success">
-                  -8% vs mes anterior
-                </span>
+                
               </div>
             </CardContent>
           </Card>
@@ -193,402 +281,33 @@ const balance = totalIncome - totalExpenses;
           </Card>
         </div>
 
-        {(warningCategories.length > 0 || exceededCategories.length > 0) && (
-          <div className="space-y-2">
-            {exceededCategories.map((cat) => {
-              const category = getCategoryById(cat.categoryId);
+        
 
-              return (
-                <div
-                  key={cat.categoryId}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20"
-                >
-                  <AlertTriangle className="h-5 w-5 text-destructive" />
-
-                  <span className="text-sm font-medium">
-                    Has excedido el presupuesto de {category?.name} por{" "}
-                    {formatCurrency(cat.spent - cat.allocated, user.currency)}
-                  </span>
+        <section id="features" className="py-20 bg-muted/30">
+                <div className="container mx-auto px-4">
+                  <div className="text-center mb-12">
+                    <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                      Todo lo que necesitas para tus finanzas
+                    </h2>
+                    <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                      Herramientas poderosas y fáciles de usar para gestionar tu dinero de manera efectiva.
+                    </p>
+                  </div>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+                    {features.map((feature, index) => (
+                      <Card key={index} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50">
+                        <CardContent className="p-6">
+                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                            <feature.icon className="h-6 w-6 text-primary" />
+                          </div>
+                          <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
+                          <p className="text-sm text-muted-foreground">{feature.description}</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
-              );
-            })}
-
-            {warningCategories.map((cat) => {
-              const category = getCategoryById(cat.categoryId);
-              const percentage = Math.round((cat.spent / cat.allocated) * 100);
-
-              return (
-                <div
-                  key={cat.categoryId}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-warning/10 border border-warning/20"
-                >
-                  <AlertTriangle className="h-5 w-5 text-warning" />
-
-                  <span className="text-sm font-medium">
-                    {category?.name} está al {percentage}% del presupuesto
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Ingresos vs Gastos</CardTitle>
-              <CardDescription>
-                Tendencia de los últimos meses
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={monthlyTrendData}>
-                    <defs>
-                      <linearGradient
-                        id="colorIngresos"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor="#27ae60"
-                          stopOpacity={0.3}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="#27ae60"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-
-                      <linearGradient
-                        id="colorGastos"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor="#e74c3c"
-                          stopOpacity={0.3}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="#e74c3c"
-                          stopOpacity={0}
-                        />
-                      </linearGradient>
-                    </defs>
-
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      className="stroke-muted"
-                    />
-
-                    <XAxis dataKey="month" className="text-xs" />
-
-                    <YAxis
-                      className="text-xs"
-                      tickFormatter={(value) => `$${value / 1000}k`}
-                    />
-
-                    <Tooltip
-                      formatter={(value: number) =>
-                        formatCurrency(value, user.currency)
-                      }
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
-                    />
-
-                    <Area
-                      type="monotone"
-                      dataKey="ingresos"
-                      stroke="#27ae60"
-                      fillOpacity={1}
-                      fill="url(#colorIngresos)"
-                      name="Ingresos"
-                    />
-
-                    <Area
-                      type="monotone"
-                      dataKey="gastos"
-                      stroke="#e74c3c"
-                      fillOpacity={1}
-                      fill="url(#colorGastos)"
-                      name="Gastos"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Distribución de Gastos</CardTitle>
-              <CardDescription>Por categoría este mes</CardDescription>
-            </CardHeader>
-
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {pieChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-
-                    <Tooltip
-                      formatter={(value: number) =>
-                        formatCurrency(value, user.currency)
-                      }
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                      }}
-                    />
-
-                    <Legend
-                      layout="vertical"
-                      align="right"
-                      verticalAlign="middle"
-                      formatter={(value) => (
-                        <span className="text-sm text-foreground">
-                          {value}
-                        </span>
-                      )}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Presupuesto por Categoría</CardTitle>
-            <CardDescription>
-              Comparación entre asignado y gastado
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent>
-            <div className="h-[350px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={categorySpendingData} layout="vertical">
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    className="stroke-muted"
-                    horizontal={false}
-                  />
-
-                  <XAxis
-                    type="number"
-                    tickFormatter={(value) => `$${value / 1000}k`}
-                    className="text-xs"
-                  />
-
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    className="text-xs"
-                    width={100}
-                  />
-
-                  <Tooltip
-                    formatter={(value: number) =>
-                      formatCurrency(value, user.currency)
-                    }
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
-
-                  <Bar
-                    dataKey="allocated"
-                    fill="hsl(var(--muted))"
-                    name="Asignado"
-                    radius={[0, 4, 4, 0]}
-                  />
-
-                  <Bar
-                    dataKey="spent"
-                    fill="hsl(var(--primary))"
-                    name="Gastado"
-                    radius={[0, 4, 4, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Transacciones Recientes</CardTitle>
-              <CardDescription>Últimos movimientos</CardDescription>
-            </CardHeader>
-
-            <CardContent>
-              <div className="space-y-3">
-                {recentTransactions.slice(0, 6).map((transaction) => {
-                  const category = getCategoryById(transaction.categoryId);
-
-                  return (
-                    <div
-                      key={transaction.id}
-                      className="flex items-center gap-4 p-3 rounded-lg bg-muted/50"
-                    >
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center"
-                        style={{
-                          backgroundColor: `${category?.color || "#999999"}20`,
-                        }}
-                      >
-                        {transaction.type === "income" ? (
-                          <TrendingUp
-                            className="h-5 w-5"
-                            style={{ color: category?.color || "#999999" }}
-                          />
-                        ) : (
-                          <TrendingDown
-                            className="h-5 w-5"
-                            style={{ color: category?.color || "#999999" }}
-                          />
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {transaction.description}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {category?.name || "Sin categoría"}
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        <p
-                          className={`text-sm font-semibold ${
-                            transaction.type === "income"
-                              ? "text-success"
-                              : "text-foreground"
-                          }`}
-                        >
-                          {transaction.type === "income" ? "+" : "-"}
-                          {formatCurrency(transaction.amount, user.currency)}
-                        </p>
-
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(transaction.date).toLocaleDateString(
-                            "es-MX",
-                            {
-                              day: "numeric",
-                              month: "short",
-                            }
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Progreso por Categoría</CardTitle>
-              <CardDescription>
-                Estado de cada presupuesto
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent>
-              <div className="space-y-4">
-                {currentBudget.categories.map((cat) => {
-                  const category = getCategoryById(cat.categoryId);
-                  const percentage = Math.round(
-                    (cat.spent / cat.allocated) * 100
-                  );
-
-                  const status =
-                    percentage >= 100
-                      ? "exceeded"
-                      : percentage >= 85
-                      ? "warning"
-                      : "normal";
-
-                  return (
-                    <div key={cat.categoryId} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{
-                              backgroundColor: category?.color || "#999999",
-                            }}
-                          />
-
-                          <span className="text-sm font-medium">
-                            {category?.name || "Sin categoría"}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">
-                            {formatCurrency(cat.spent, user.currency)} /{" "}
-                            {formatCurrency(cat.allocated, user.currency)}
-                          </span>
-
-                          {status === "exceeded" && (
-                            <Badge variant="destructive" className="text-xs">
-                              Excedido
-                            </Badge>
-                          )}
-
-                          {status === "warning" && (
-                            <Badge className="bg-warning/20 text-warning border-warning/30 text-xs">
-                              Alerta
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      <Progress
-                        value={Math.min(percentage, 100)}
-                        className="h-2"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </section>
       </main>
     </>
   );

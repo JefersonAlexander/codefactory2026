@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ElementType } from "react";
+import { useEffect, useMemo, useState, type ElementType } from "react";
 import {
   ArrowUpRight,
   Calendar,
@@ -12,6 +12,7 @@ import {
   PiggyBank,
   Plus,
   Search,
+  Tag,
   Trash2,
   TrendingUp,
   Wallet,
@@ -67,6 +68,13 @@ const incomeCategories = [
   { id: 4, name: "Otros", icon: "moreHorizontal", color: "#6b7280" },
 ];
 
+const fallbackIncomeCategory = {
+  id: 0,
+  name: "Sin categoria",
+  icon: "tag",
+  color: "#6b7280",
+};
+
 type User = {
   nombre: string;
   email: string;
@@ -85,6 +93,7 @@ const iconMap: Record<string, ElementType> = {
   trendingUp: TrendingUp,
   piggyBank: PiggyBank,
   moreHorizontal: MoreHorizontal,
+  tag: Tag,
 };
 
 const getDefaultIncomeForm = (): IncomeFormState => ({
@@ -101,14 +110,8 @@ export default function IncomePage() {
     currency: "COP",
   });
 
-  const {
-    incomes,
-    totalIncome,
-    loading,
-    addIncome,
-    editIncome,
-    removeIncome,
-  } = useIncomes();
+  const { incomes, loading, addIncome, editIncome, removeIncome } =
+    useIncomes();
   const { toast } = useToast();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -140,6 +143,60 @@ export default function IncomePage() {
     (income) => income.id === incomeToDelete
   );
 
+  const totalIncome = useMemo(
+    () => incomes.reduce((sum, income) => sum + income.valor, 0),
+    [incomes]
+  );
+
+  const incomeCategorySummary = useMemo(() => {
+    const groupedIncome = incomes.reduce((acc, income) => {
+      const categoryId = Number(income.idCategoria);
+      const category = incomeCategories.find(
+        (category) => category.id === categoryId
+      );
+
+      console.log("Income:", income);
+      console.log("idCategoria:", income.idCategoria);
+      console.log("Category encontrada:", category);
+
+      if (!acc[categoryId]) {
+        acc[categoryId] = 0;
+      }
+
+      acc[categoryId] += income.valor;
+
+      return acc;
+    }, {} as Record<number, number>);
+
+    const knownCategorySummaries = incomeCategories.map((category) => {
+      const amount = groupedIncome[category.id] || 0;
+      const percentage =
+        totalIncome > 0 ? (amount / totalIncome) * 100 : 0;
+
+      return {
+        ...category,
+        amount,
+        percentage,
+      };
+    });
+
+    const unknownCategorySummaries = Object.entries(groupedIncome)
+      .filter(
+        ([categoryId]) =>
+          !incomeCategories.find(
+            (category) => category.id === Number(categoryId)
+          )
+      )
+      .map(([categoryId, amount]) => ({
+        ...fallbackIncomeCategory,
+        id: Number(categoryId),
+        amount,
+        percentage: totalIncome > 0 ? (amount / totalIncome) * 100 : 0,
+      }));
+
+    return [...knownCategorySummaries, ...unknownCategorySummaries];
+  }, [incomes, totalIncome]);
+
   const filteredIncomes = incomes.filter((income) => {
     const matchesSearch = income.descripcion
       .toLowerCase()
@@ -150,12 +207,6 @@ export default function IncomePage() {
 
     return matchesSearch && matchesCategory;
   });
-
-  const incomeByCategory = incomes.reduce((acc, income) => {
-    acc[income.idCategoria] = (acc[income.idCategoria] || 0) + income.valor;
-
-    return acc;
-  }, {} as Record<number, number>);
 
   const resetIncomeForm = () => {
     setIncomeForm(getDefaultIncomeForm());
@@ -335,59 +386,6 @@ export default function IncomePage() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Ingresos por Categoria</CardTitle>
-
-            <CardDescription>
-              Distribucion de tus fuentes de ingreso
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-              {incomeCategories.map((category) => {
-                const amount = incomeByCategory[category.id] || 0;
-                const percentage =
-                  totalIncome > 0 ? Math.round((amount / totalIncome) * 100) : 0;
-                const IconComponent = iconMap[category.icon] || MoreHorizontal;
-
-                return (
-                  <div
-                    key={category.id}
-                    className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center"
-                        style={{ backgroundColor: `${category.color}20` }}
-                      >
-                        <IconComponent
-                          className="h-5 w-5"
-                          style={{ color: category.color }}
-                        />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {category.name}
-                        </p>
-
-                        <p className="text-xs text-muted-foreground">
-                          {percentage}%
-                        </p>
-                      </div>
-                    </div>
-
-                    <p className="text-lg font-semibold text-success">
-                      {formatCurrency(amount, user.currency)}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">

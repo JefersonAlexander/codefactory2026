@@ -64,11 +64,7 @@ const financeNavItems = [
     url: "/dashboard/expenses",
     icon: TrendingDown,
   },
-  {
-    title: "Reportes",
-    url: "/dashboard/reports",
-    icon: FileBarChart,
-  },
+  
 ];
 
 export function AppSidebar() {
@@ -147,8 +143,7 @@ export function AppSidebar() {
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground truncate">{mockUser.name}</p>
-            <p className="text-xs text-muted-foreground truncate">{mockUser.email}</p>
+            
           </div>
           <Link
             href="/"

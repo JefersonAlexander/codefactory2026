@@ -168,7 +168,7 @@ export default function ProfilePage() {
                       <Globe className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm">País</span>
                     </div>
-                    <span className="text-sm font-medium"> 'Colombia'</span>
+                    <span className="text-sm font-medium"> Colombia </span>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                     <div className="flex items-center gap-2">
@@ -179,15 +179,7 @@ export default function ProfilePage() {
                         ${(user?.salario ?? 0).toFixed(2)}
                         </span>
                   </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-2">
-                      <Target className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">Meta</span>
-                    </div>
-                    <span className="text-sm font-medium truncate max-w-[120px]">
-                      {'Sin definir'}
-                    </span>
-                  </div>
+
                 </div>
               </div>
             </CardContent>
@@ -331,33 +323,6 @@ export default function ProfilePage() {
           </Card>
         </div>
 
-        {/* Account Stats */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Resumen de tu Cuenta</CardTitle>
-            <CardDescription>Estadísticas generales de tu actividad</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-4">
-              <div className="p-4 rounded-lg bg-primary/5 border border-primary/10">
-                <p className="text-sm text-muted-foreground">Meses Registrados</p>
-                <p className="text-2xl font-bold text-primary">4</p>
-              </div>
-              <div className="p-4 rounded-lg bg-success/5 border border-success/10">
-                <p className="text-sm text-muted-foreground">Transacciones</p>
-                <p className="text-2xl font-bold text-success">127</p>
-              </div>
-              <div className="p-4 rounded-lg bg-accent/5 border border-accent/10">
-                <p className="text-sm text-muted-foreground">Categorías Activas</p>
-                <p className="text-2xl font-bold text-accent">8</p>
-              </div>
-              <div className="p-4 rounded-lg bg-warning/5 border border-warning/10">
-                <p className="text-sm text-muted-foreground">Presupuestos Creados</p>
-                <p className="text-2xl font-bold text-warning">12</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </main>
     </>
   );

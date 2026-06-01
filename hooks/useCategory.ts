@@ -57,7 +57,9 @@ export function useCategories() {
 
       setCategories((prev) =>
         prev.map((category) =>
-          category.id === categoryId ? updatedCategory : category
+          category.id === categoryId
+            ? { ...category, ...updatedCategory }
+            : category
         )
       );
 

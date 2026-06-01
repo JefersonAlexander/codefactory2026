@@ -1,17 +1,6 @@
 "use client";
 
-const categories = [
-    { categoryId: 'food', allocated: 6000, spent: 4250 },
-    { categoryId: 'transport', allocated: 3000, spent: 2100 },
-    { categoryId: 'housing', allocated: 8000, spent: 8000 },
-    { categoryId: 'entertainment', allocated: 2000, spent: 1800 },
-    { categoryId: 'health', allocated: 1500, spent: 500 },
-    { categoryId: 'education', allocated: 1500, spent: 1200 },
-    { categoryId: 'savings', allocated: 2000, spent: 2000 },
-    { categoryId: 'other', allocated: 1000, spent: 650 },
-  ]
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Wallet, Edit2, Save, TrendingUp, TrendingDown,AlertCircle,CheckCircle2,ChevronLeft,ChevronRight
 } from "lucide-react";
 
@@ -23,13 +12,13 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DashboardHeader } from "@/components/dashboard-header";
-import { useEffect } from "react";
-import {  formatCurrency, getCategoryById,getMonthName, } from "@/lib/mock-data"; 
-import {PieChart,Pie,Cell,ResponsiveContainer,Tooltip,Legend} from "recharts";
+import {  expenseCategories, formatCurrency, getMonthName, } from "@/lib/mock-data"; 
+import {PieChart,Pie,Cell,ResponsiveContainer,Tooltip} from "recharts";
 
-import {currentBudget,getPresupuestoActivo,crearPresupuesto,actualizarPresupuesto} from "@/src/services/presupuestoService";
+import {crearPresupuesto,actualizarPresupuesto} from "@/src/services/presupuestoService";
 import { useFinancialSummary } from "@/hooks/useFinancialSummary";
 import { useBudget } from "@/hooks/useBudget";
+import { useCategoryReport } from "@/hooks/useCategoryReport";
 
 type User = {
   nombre: string;
@@ -65,13 +54,23 @@ if (storedUser) {
 
 
 const {totalIncome,totalExpenses,} = useFinancialSummary();
-const {presupuesto,setPresupuesto,editBudget,setEditBudget,loading:loadingBudget} = useBudget();
+const {presupuesto,setPresupuesto,editBudget,setEditBudget} = useBudget();
+const {
+  report: categoryReport,
+  loading: loadingCategoryReport,
+  error: categoryReportError,
+  fetchReport: fetchCategoryReport,
+} = useCategoryReport();
+const [hasRequestedCategoryReport, setHasRequestedCategoryReport] =
+  useState(false);
+const [categoryReportStartDate, setCategoryReportStartDate] =
+  useState("2026-05-01");
+const [categoryReportEndDate, setCategoryReportEndDate] =
+  useState("2026-05-31");
 
 
 const valor = Number(presupuesto?.valor || 0);
-const fecha = presupuesto?.fecha?.split("-")[0] ?? "";
 const totalSpent = totalExpenses; 
-const totalAllocated = valor;
 const remaining = valor - totalSpent;
 const budgetPercentage =
     valor > 0 ? Math.round((totalSpent / valor) * 100) : 0;
@@ -98,8 +97,8 @@ const handleSaveBudget = async () => {
 };
 
 const pieData = [
-    { name: "Gastado", value: totalSpent, color: "hsl(var(--primary))" },
-    { name: "Disponible", value: Math.max(0, remaining), color: "hsl(var(--muted))" },
+    { name: "Gastado", value: totalSpent, color: "#E46212" },
+    { name: "Disponible", value: Math.max(0, remaining), color: "#22c55e" },
   ];
    
 
@@ -108,8 +107,26 @@ const fechapresupuesto = presupuesto?.fecha
 ? new Date(presupuesto.fecha)
 : null;
 
-const month = fechapresupuesto ? fechapresupuesto.getMonth() + 1 : 0;
+const month = fechapresupuesto ? fechapresupuesto.getMonth() + 2 : 0;
 const year = fechapresupuesto ? fechapresupuesto.getFullYear() : 0;
+
+const handleFetchCategoryReport = () => {
+  if (!categoryReportStartDate || !categoryReportEndDate) return;
+
+  console.log("Fecha inicio:", categoryReportStartDate);
+  console.log("Fecha fin:", categoryReportEndDate);
+
+  setHasRequestedCategoryReport(true);
+
+  fetchCategoryReport(categoryReportStartDate, categoryReportEndDate);
+};
+
+useEffect(() => {
+  handleFetchCategoryReport();
+}, []);
+
+const categoryReportItems = categoryReport?.categoryExpenses ?? [];
+const categoryReportTotal = categoryReport?.totalExpenses ?? 0;
 
   return (
     <>
@@ -298,7 +315,7 @@ const year = fechapresupuesto ? fechapresupuesto.getFullYear() : 0;
                     </div>
                     <span className="font-medium">{formatCurrency(totalSpent, user.currency)}</span>
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-muted" />
+                      <div className="w-3 h-3 rounded-full bg-success" />
                       <span>Disponible</span>
                     </div>
                     <span className="font-medium">{formatCurrency(remaining, user.currency)}</span>
@@ -346,12 +363,7 @@ const year = fechapresupuesto ? fechapresupuesto.getFullYear() : 0;
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground mb-1">Promedio diario permitido</p>
-                  <p className="text-lg font-semibold">
-                    {formatCurrency(remaining / Math.max(1, 30 - new Date().getDate()), user.currency)}
-                  </p>
-                </div>
+                
                 <div className="p-3 rounded-lg bg-muted/50">
                   <p className="text-xs text-muted-foreground mb-1">Días restantes del mes</p>
                   <p className="text-lg font-semibold">
@@ -370,30 +382,83 @@ const year = fechapresupuesto ? fechapresupuesto.getFullYear() : 0;
             <CardDescription>Gestiona el presupuesto de cada categoría</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end mb-4">
+              <div className="space-y-2">
+                <Label htmlFor="category-report-start-date">Fecha inicio</Label>
+                <Input
+                  id="category-report-start-date"
+                  type="date"
+                  value={categoryReportStartDate}
+                  onChange={(event) =>
+                    setCategoryReportStartDate(event.target.value)
+                  }
+                  disabled={loadingCategoryReport}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category-report-end-date">Fecha fin</Label>
+                <Input
+                  id="category-report-end-date"
+                  type="date"
+                  value={categoryReportEndDate}
+                  onChange={(event) =>
+                    setCategoryReportEndDate(event.target.value)
+                  }
+                  disabled={loadingCategoryReport}
+                />
+              </div>
+
+              <Button
+                onClick={handleFetchCategoryReport}
+                disabled={
+                  loadingCategoryReport ||
+                  !categoryReportStartDate ||
+                  !categoryReportEndDate
+                }
+              >
+                Consultar
+              </Button>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
-              {categories.map((cat) => {
-                const category = getCategoryById(cat.categoryId);
-                const percentage = Math.round((cat.spent / cat.allocated) * 100);
+              {categoryReportItems.length === 0 ? (
+                <div className="text-sm text-muted-foreground">
+                  {loadingCategoryReport
+                    ? "Cargando reporte por categorias..."
+                    : categoryReportError ||
+                      (hasRequestedCategoryReport
+                        ? "No hay datos por categoria"
+                        : "Cargando reporte por categorias...")}
+                </div>
+              ) : categoryReportItems.map((cat, index) => {
+                const categoryColor =
+                  expenseCategories[index % expenseCategories.length]?.color ||
+                  "#999999";
+                const percentage = cat.percentage;
+                const percentageLabel = percentage
+                  .toFixed(1)
+                  .replace(".0", "");
                 const status = percentage >= 100 ? 'exceeded' : percentage >= 85 ? 'warning' : 'normal';
-                const remaining = cat.allocated - cat.spent;
+                const remaining = categoryReportTotal - cat.amount;
                 
                 return (
                   <div 
-                    key={cat.categoryId} 
+                    key={`${cat.categoryName}-${index}`} 
                     className="p-4 rounded-lg border bg-card hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <div 
                           className="w-10 h-10 rounded-lg flex items-center justify-center"
-                          style={{ backgroundColor: `${category?.color}20` }}
+                          style={{ backgroundColor: `${categoryColor}20` }}
                         >
-                          <Wallet className="h-5 w-5" style={{ color: category?.color }} />
+                          <Wallet className="h-5 w-5" style={{ color: categoryColor }} />
                         </div>
                         <div>
-                          <h4 className="font-semibold">{category?.name}</h4>
+                          <h4 className="font-semibold">{cat.categoryName}</h4>
                           <p className="text-xs text-muted-foreground">
-                            {formatCurrency(cat.spent, user.currency)} de {formatCurrency(cat.allocated, user.currency)}
+                            {formatCurrency(cat.amount, user.currency)} de {formatCurrency(categoryReportTotal, user.currency)}
                           </p>
                         </div>
                       </div>
@@ -401,7 +466,7 @@ const year = fechapresupuesto ? fechapresupuesto.getFullYear() : 0;
                         variant={status === 'exceeded' ? 'destructive' : status === 'warning' ? 'outline' : 'secondary'}
                         className={status === 'warning' ? 'border-warning text-warning bg-warning/10' : ''}
                       >
-                        {percentage}%
+                        {percentageLabel}%
                       </Badge>
                     </div>
                     <Progress 

@@ -5,11 +5,42 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export interface CategoryRequest {
   nombre: string;
+  icon: string;
 }
 
 export interface CategoryResponse {
   id: number;
   nombre: string;
+  icon?: string;
+  icono?: string;
+  name?: string;
+  descripcion?: string;
+  color?: string;
+}
+
+type CategoryApiResponse = CategoryResponse & {
+  name?: string;
+  icon?: string;
+  icono?: string;
+};
+
+function buildCategoryPayload(data: CategoryRequest) {
+  return {
+    nombre: data.nombre,
+    name: data.nombre,
+    icon: data.icon,
+  };
+}
+
+function normalizeCategory(
+  category: CategoryApiResponse,
+  fallback?: CategoryRequest
+): CategoryResponse {
+  return {
+    ...category,
+    nombre: category.nombre || category.name || fallback?.nombre || "",
+    icon: category.icon || category.icono || fallback?.icon || "Tag",
+  };
 }
 
 export async function getCategories(token: string): Promise<CategoryResponse[]> {
@@ -24,7 +55,9 @@ export async function getCategories(token: string): Promise<CategoryResponse[]> 
     throw new Error("Error obteniendo las categorías");
   }
 
-  return response.json();
+  const data = (await response.json()) as CategoryApiResponse[];
+
+  return data.map((category) => normalizeCategory(category));
 }
 
 export async function getCategoryById(
@@ -42,27 +75,41 @@ export async function getCategoryById(
     throw new Error("Error obteniendo la categoría");
   }
 
-  return response.json();
+  const data = (await response.json()) as CategoryApiResponse;
+
+  return normalizeCategory(data);
 }
 
 export async function createCategory(
   data: CategoryRequest,
   token: string
 ): Promise<CategoryResponse> {
+  const payload = buildCategoryPayload(data);
+
+  console.log("Payload enviado:", payload);
+
   const response = await fetch(`${API_URL}/api/categories`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
     throw new Error("Error creando la categoría");
   }
 
-  return response.json();
+  const category = normalizeCategory(
+    (await response.json()) as CategoryApiResponse,
+    data
+  );
+
+  console.log("Categoria actualizada:", category);
+  console.log("Icono recibido:", category.icon);
+
+  return category;
 }
 
 export async function updateCategory(
@@ -70,20 +117,32 @@ export async function updateCategory(
   data: CategoryRequest,
   token: string
 ): Promise<CategoryResponse> {
+  const payload = buildCategoryPayload(data);
+
+  console.log("Payload enviado:", payload);
+
   const response = await fetch(`${API_URL}/api/categories/${categoryId}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
     throw new Error("Error actualizando la categoría");
   }
 
-  return response.json();
+  const category = normalizeCategory(
+    (await response.json()) as CategoryApiResponse,
+    data
+  );
+
+  console.log("Categoria actualizada:", category);
+  console.log("Icono recibido:", category.icon);
+
+  return category;
 }
 
 export async function deleteCategory(
